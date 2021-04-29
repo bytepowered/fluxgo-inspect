@@ -1,7 +1,7 @@
 package fluxinspect
 
 import (
-	"github.com/bytepowered/flux/flux-node"
+	"github.com/bytepowered/flux"
 	"github.com/graphql-go/graphql"
 )
 

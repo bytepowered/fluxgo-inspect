@@ -1,8 +1,8 @@
 package fluxinspect
 
 import (
-	"github.com/bytepowered/flux/flux-node"
-	"github.com/bytepowered/flux/flux-node/ext"
+	"github.com/bytepowered/flux"
+	"github.com/bytepowered/flux/ext"
 	"strings"
 )
 
