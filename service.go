@@ -1,4 +1,4 @@
-package fluxinspect
+package inspect
 
 import (
 	"github.com/bytepowered/flux"

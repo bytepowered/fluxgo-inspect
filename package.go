@@ -1,1 +1,1 @@
-package fluxinspect
+package inspect
