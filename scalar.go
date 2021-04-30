@@ -19,26 +19,26 @@ var (
 		Name:        "Service",
 		Description: "网关后端Service元数据",
 		Fields: graphql.Fields{
-			"aliasId": newServiceStringField("Service别名", func(srv *flux.Service) string {
+			"aliasId": newServiceStringField("Service别名", func(srv flux.Service) string {
 				return srv.AliasId
 			}),
-			"serviceId": newServiceStringField("Service的标识ID", func(srv *flux.Service) string {
+			"serviceId": newServiceStringField("Service的标识ID", func(srv flux.Service) string {
 				return srv.ServiceID()
 			}),
-			"scheme": newServiceStringField("Service侧URL的Scheme", func(srv *flux.Service) string {
+			"scheme": newServiceStringField("Service侧URL的Scheme", func(srv flux.Service) string {
 				return srv.Scheme
 			}),
-			"url": newServiceStringField("Service侧的Url", func(srv *flux.Service) string {
+			"url": newServiceStringField("Service侧的Url", func(srv flux.Service) string {
 				return srv.Url
 			}),
-			"interface": newServiceStringField("Service侧的URL/Interface", func(srv *flux.Service) string {
+			"interface": newServiceStringField("Service侧的URL/Interface", func(srv flux.Service) string {
 				return srv.Interface
 			}),
-			"method": newServiceStringField("Service侧的方法", func(srv *flux.Service) string {
+			"method": newServiceStringField("Service侧的方法", func(srv flux.Service) string {
 				return srv.Method
 			}),
 			"attributes": newAttributesField("服务属性列表", func(src interface{}) []flux.Attribute {
-				srv, _ := src.(*flux.Service)
+				srv, _ := src.(flux.Service)
 				return srv.Attributes
 			}),
 			"arguments": newArgumentField("接口参数列表"),
@@ -62,8 +62,8 @@ var (
 				return ep.HttpMethod
 			}),
 			"attributes": newAttributesField("端点属性列表", func(src interface{}) []flux.Attribute {
-				srv, _ := src.(*flux.Endpoint)
-				return srv.Attributes
+				ep, _ := src.(*flux.Endpoint)
+				return ep.Attributes
 			}),
 			"service": &graphql.Field{
 				Type:        ServiceScalarType,
@@ -78,10 +78,7 @@ var (
 				Description: "多组权限验证服务ID列表",
 				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
 					ep, _ := p.Source.(*flux.Endpoint)
-					if ep.Permissions == nil {
-						return []string{}, nil
-					}
-					return ep.Permissions, nil
+					return ep.PermissionIds(), nil
 				},
 			},
 		},
@@ -119,12 +116,12 @@ func newArgumentField(desc string) *graphql.Field {
 	}
 }
 
-func newServiceStringField(desc string, f func(endpoint *flux.Service) string) *graphql.Field {
+func newServiceStringField(desc string, f func(service flux.Service) string) *graphql.Field {
 	return &graphql.Field{
 		Type:        graphql.NewNonNull(graphql.String),
 		Description: desc,
 		Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-			if srv, ok := p.Source.(*flux.Service); ok {
+			if srv, ok := p.Source.(flux.Service); ok {
 				return f(srv), nil
 			}
 			return "", nil

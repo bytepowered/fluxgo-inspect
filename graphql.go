@@ -50,7 +50,7 @@ func init() {
 	services := &graphql.Field{
 		Name:        "services",
 		Description: "查询已注册到网关的Service列表",
-		Type:        graphql.NewList(EndpointScalarType),
+		Type:        graphql.NewList(ServiceScalarType),
 		Args: graphql.FieldConfigArgument{
 			srvQueryKeyServiceId: &graphql.ArgumentConfig{
 				Description: "通过serviceId过滤特定Service",
@@ -62,7 +62,7 @@ func init() {
 			},
 		},
 		Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-			return DoQueryEndpoints(func(key string) string {
+			return DoQueryServices(func(key string) string {
 				return cast.ToString(p.Args[key])
 			}), nil
 		},
