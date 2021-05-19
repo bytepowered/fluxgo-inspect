@@ -2,19 +2,23 @@ package inspect
 
 import (
 	"github.com/bytepowered/flux"
-	"github.com/spf13/viper"
 )
 
 func ConfigurationQueryHandler(webex flux.ServerWebContext) error {
-	global := viper.GetViper().AllSettings()
-	config := global
+	root := flux.NewRootConfiguration()
 	// Namespaces
-	ns := webex.FormVar("ns")
+	ns := webex.FormVar("namespace")
 	switch ns {
 	case "all", "":
-		config = global
+		// root = root
 	default:
-		config = flux.NewConfiguration(ns).ToStringMap()
+		root = flux.NewConfiguration(ns)
 	}
-	return send(webex, flux.StatusOK, config)
+	// Resolve key
+	key := webex.FormVar("key")
+	if "" == key {
+		return send(webex, flux.StatusOK, root.ToStringMap())
+	} else {
+		return send(webex, flux.StatusOK, root.Get(key))
+	}
 }
