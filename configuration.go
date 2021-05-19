@@ -19,6 +19,10 @@ func ConfigurationQueryHandler(webex flux.ServerWebContext) error {
 	if "" == key {
 		return send(webex, flux.StatusOK, root.ToStringMap())
 	} else {
-		return send(webex, flux.StatusOK, root.Get(key))
+		return send(webex, flux.StatusOK, map[string]interface{}{
+			"namespace": ns,
+			"key":       key,
+			"value":     root.Get(key),
+		})
 	}
 }
