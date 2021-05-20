@@ -11,7 +11,7 @@ func queryMatch(input, expected string) bool {
 	return strings.Contains(expected, input)
 }
 
-func send(webex flux.ServerWebContext, status int, payload interface{}) error {
+func WriteResponse(webex flux.ServerWebContext, status int, payload interface{}) error {
 	bytes, err := ext.JSONMarshalObject(payload)
 	if nil != err {
 		return err

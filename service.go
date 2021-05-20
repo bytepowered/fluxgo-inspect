@@ -54,7 +54,7 @@ func ServicesHandler(ctx flux.ServerWebContext) error {
 	services := DoQueryServices(func(key string) string {
 		return ctx.QueryVar(key)
 	})
-	return send(ctx, flux.StatusOK, services)
+	return WriteResponse(ctx, flux.StatusOK, services)
 }
 
 func queryServiceByFilters(data map[string]flux.Service, filters ...ServiceFilter) []flux.Service {

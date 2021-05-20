@@ -67,7 +67,7 @@ func EndpointsHandler(webex flux.ServerWebContext) error {
 	m := DoQueryEndpoints(func(key string) string {
 		return webex.QueryVar(key)
 	})
-	return send(webex, flux.StatusOK, m)
+	return WriteResponse(webex, flux.StatusOK, m)
 }
 
 func queryEndpointByFilters(endpoints map[string]*flux.MVCEndpoint, filters ...EndpointFilter) []*flux.Endpoint {

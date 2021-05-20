@@ -4,6 +4,7 @@ import (
 	"github.com/bytepowered/flux"
 )
 
+// ConfigurationQueryHandler 查询配置
 func ConfigurationQueryHandler(webex flux.ServerWebContext) error {
 	root := flux.NewRootConfiguration()
 	// Namespaces
@@ -17,9 +18,9 @@ func ConfigurationQueryHandler(webex flux.ServerWebContext) error {
 	// Resolve key
 	key := webex.FormVar("key")
 	if "" == key {
-		return send(webex, flux.StatusOK, root.ToStringMap())
+		return WriteResponse(webex, flux.StatusOK, root.ToStringMap())
 	} else {
-		return send(webex, flux.StatusOK, map[string]interface{}{
+		return WriteResponse(webex, flux.StatusOK, map[string]interface{}{
 			"namespace": ns,
 			"key":       key,
 			"value":     root.Get(key),
