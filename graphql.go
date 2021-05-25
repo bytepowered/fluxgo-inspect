@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/bytepowered/flux"
-	"github.com/bytepowered/flux/toolkit"
 	"github.com/graphql-go/graphql"
 	"github.com/graphql-go/handler"
 	"github.com/spf13/cast"
@@ -74,7 +73,7 @@ func init() {
 				"services":  services,
 			}}),
 	})
-	toolkit.AssertL(err == nil, func() string {
+	flux.AssertM(err == nil, func() string {
 		return fmt.Sprintf("<graphql> scheme init failed: %s", err)
 	})
 	schema = &sc
