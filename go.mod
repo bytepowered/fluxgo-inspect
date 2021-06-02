@@ -8,3 +8,5 @@ require (
 	github.com/graphql-go/handler v0.2.3
 	github.com/spf13/cast v1.3.0
 )
+
+replace github.com/bytepowered/flux => github.com/yongjiapro/flux v0.19.0-rc4

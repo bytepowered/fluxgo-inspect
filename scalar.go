@@ -78,7 +78,7 @@ var (
 				Description: "多组权限验证服务ID列表",
 				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
 					ep, _ := p.Source.(*flux.Endpoint)
-					return ep.PermissionIds(), nil
+					return ep.MultiAttributes(flux.EndpointAttrTagPermission).Strings(), nil
 				},
 			},
 		},
