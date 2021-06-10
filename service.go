@@ -50,6 +50,24 @@ func DoQueryServices(args func(key string) string) []flux.Service {
 	return queryServiceByFilters(services, filters...)
 }
 
+func ServiceStatsHandler(webex flux.ServerWebContext) error {
+	protos := make(map[string]int)
+	total := 0
+	for _, ep := range ext.Services() {
+		total++
+		proto := ep.RpcProto()
+		if c, ok := protos[proto]; ok {
+			protos[proto] = c + 1
+		} else {
+			protos[proto] = 1
+		}
+	}
+	return WriteResponse(webex, flux.StatusOK, map[string]interface{}{
+		"count":  total,
+		"protos": protos,
+	})
+}
+
 func ServicesHandler(ctx flux.ServerWebContext) error {
 	services := DoQueryServices(func(key string) string {
 		return ctx.QueryVar(key)

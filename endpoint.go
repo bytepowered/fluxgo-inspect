@@ -63,6 +63,24 @@ func DoQueryEndpoints(args func(key string) string) []*flux.Endpoint {
 	return queryEndpointByFilters(endpoints, filters...)
 }
 
+func EndpointsStatsHandler(webex flux.ServerWebContext) error {
+	apps := make(map[string]int)
+	count := 0
+	for _, ep := range ext.Endpoints() {
+		count++
+		app := ep.Random().Application
+		if c, ok := apps[app]; ok {
+			apps[app] = c + 1
+		} else {
+			apps[app] = 1
+		}
+	}
+	return WriteResponse(webex, flux.StatusOK, map[string]interface{}{
+		"count": count,
+		"apps":  apps,
+	})
+}
+
 func EndpointsHandler(webex flux.ServerWebContext) error {
 	m := DoQueryEndpoints(func(key string) string {
 		return webex.QueryVar(key)
