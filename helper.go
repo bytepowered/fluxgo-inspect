@@ -5,6 +5,19 @@ import (
 	"strconv"
 )
 
+// IsEmptyVars 判定列表参数是否任意一个为空值
+func IsEmptyVars(vars []string) bool {
+	if 0 == len(vars) {
+		return true
+	}
+	for _, v := range vars {
+		if "" == v {
+			return true
+		}
+	}
+	return false
+}
+
 type pagination struct {
 	page     int
 	pageSize int

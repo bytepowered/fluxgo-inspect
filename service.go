@@ -88,7 +88,7 @@ func filterServices(ctx *flux.Context) []flux.Service {
 	filters := make([]*ServiceFilterWrapper, 0, len(serviceFilters))
 	for key, filter := range serviceFilters {
 		values, ok := ctx.FormVars()[key]
-		if !ok {
+		if !ok || IsEmptyVars(values) {
 			continue
 		}
 		filters = append(filters, &ServiceFilterWrapper{
@@ -104,11 +104,17 @@ func filterServices(ctx *flux.Context) []flux.Service {
 	// Data filtering
 	source := ext.Services()
 	services := make([]flux.Service, 0, len(source))
-	for _, filter := range filters {
-		for _, srv := range source {
-			if filter.DoFilter(&srv) {
-				services = append(services, srv)
+	isFilterMatch := func(srv *flux.Service) bool {
+		for _, filter := range filters {
+			if !filter.DoFilter(srv) {
+				return false
 			}
+		}
+		return true
+	}
+	for _, srv := range source {
+		if isFilterMatch(&srv) {
+			services = append(services, srv)
 		}
 	}
 	return services

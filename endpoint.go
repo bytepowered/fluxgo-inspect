@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/bytepowered/flux"
 	"github.com/bytepowered/flux/ext"
+	"github.com/bytepowered/flux/logger"
 	"github.com/bytepowered/flux/toolkit"
 	"github.com/bytepowered/flux/transporter/inapp"
 	"sort"
@@ -25,10 +26,11 @@ const (
 )
 
 type MultiEndpointFilter func(values []string, mvce *flux.MVCEndpoint) bool
-type SingleEndpointFilter func(values []string, ep *flux.Endpoint) bool
+type ValueEndpointFilter func(values []string, ep *flux.Endpoint) bool
 
 // MultiEndpointFilterWrapper with value wrapper
 type MultiEndpointFilterWrapper struct {
+	name   string
 	values []string
 	filter MultiEndpointFilter
 }
@@ -37,19 +39,20 @@ func (w *MultiEndpointFilterWrapper) DoFilter(mvce *flux.MVCEndpoint) bool {
 	return w.filter(w.values, mvce)
 }
 
-// SingleEndpointFilterWrapper with values wrapper
-type SingleEndpointFilterWrapper struct {
+// ValueEndpointFilterWrapper with values wrapper
+type ValueEndpointFilterWrapper struct {
+	name   string
 	values []string
-	filter SingleEndpointFilter
+	filter ValueEndpointFilter
 }
 
-func (w *SingleEndpointFilterWrapper) DoFilter(ep *flux.Endpoint) bool {
+func (w *ValueEndpointFilterWrapper) DoFilter(ep *flux.Endpoint) bool {
 	return w.filter(w.values, ep)
 }
 
 var (
-	epMultiFilters  = make(map[string]MultiEndpointFilter)
-	epSingleFilters = make(map[string]SingleEndpointFilter)
+	epMultiFilters = make(map[string]MultiEndpointFilter)
+	epValueFilters = make(map[string]ValueEndpointFilter)
 )
 
 func init() {
@@ -75,13 +78,16 @@ func init() {
 		return toolkit.MatchEqual(query, mvce.Random().HttpMethod)
 	}
 	// single filter
-	epSingleFilters[endpointQueryVersion] = func(query []string, ep *flux.Endpoint) bool {
+	epValueFilters[endpointQueryApplication] = func(query []string, ep *flux.Endpoint) bool {
+		return toolkit.MatchEqual(query, ep.Application)
+	}
+	epValueFilters[endpointQueryVersion] = func(query []string, ep *flux.Endpoint) bool {
 		return toolkit.MatchEqual(query, ep.Version)
 	}
-	epSingleFilters[endpointQueryServiceId] = func(query []string, ep *flux.Endpoint) bool {
+	epValueFilters[endpointQueryServiceId] = func(query []string, ep *flux.Endpoint) bool {
 		return toolkit.MatchEqual(query, ep.ServiceId)
 	}
-	epSingleFilters[endpointQueryRpcProto] = func(query []string, ep *flux.Endpoint) bool {
+	epValueFilters[endpointQueryRpcProto] = func(query []string, ep *flux.Endpoint) bool {
 		return toolkit.MatchEqual(query, ep.Service.RpcProto())
 	}
 }
@@ -95,7 +101,9 @@ func EndpointMetadataInvokeFunc(ctx *flux.Context, _ flux.Service) (interface{},
 	sort.Sort(SortableEndpoints(endpoints))
 	args := extraPageArgs(ctx)
 	total := len(endpoints)
-	data := endpoints[limit(0, total-1, args.start):limit(0, total-1, args.end)]
+	start := limit(0, total-1, args.start)
+	end := limit(0, total, args.end)
+	data := endpoints[start:end]
 	// page, pageSize
 	return map[string]interface{}{
 		"success":  true,
@@ -106,32 +114,42 @@ func EndpointMetadataInvokeFunc(ctx *flux.Context, _ flux.Service) (interface{},
 	}, nil
 }
 
-func filterEndpoints(ctx *flux.Context, muleps []*flux.MVCEndpoint) []*flux.Endpoint {
+func filterEndpoints(ctx *flux.Context, multiends []*flux.MVCEndpoint) []*flux.Endpoint {
 	// Lookup filters
-	filters := make([]*SingleEndpointFilterWrapper, 0, len(epSingleFilters))
-	for key, filter := range epSingleFilters {
+	filters := make([]*ValueEndpointFilterWrapper, 0, len(epValueFilters))
+	for key, filter := range epValueFilters {
 		values, ok := ctx.FormVars()[key]
-		if !ok {
+		if !ok || IsEmptyVars(values) {
 			continue
 		}
-		filters = append(filters, &SingleEndpointFilterWrapper{
+		filters = append(filters, &ValueEndpointFilterWrapper{
+			name:   fmt.Sprintf("SingleKeyFilter/%s", key),
 			values: values,
 			filter: filter,
 		})
 	}
 	if len(filters) == 0 {
-		filters = []*SingleEndpointFilterWrapper{{filter: func(_ []string, _ *flux.Endpoint) bool {
+		filters = []*ValueEndpointFilterWrapper{{name: "ValueEndpointFilter/all", filter: func(_ []string, _ *flux.Endpoint) bool {
 			return true
 		}}}
 	}
 	// Data filtering
-	endpoints := make([]*flux.Endpoint, 0, len(muleps))
-	for _, filter := range filters {
-		for _, mvce := range muleps {
-			for _, ep := range mvce.Endpoints() {
-				if filter.DoFilter(ep) {
-					endpoints = append(endpoints, ep)
-				}
+	endpoints := make([]*flux.Endpoint, 0, len(multiends))
+	isFilterMatch := func(ep *flux.Endpoint) bool {
+		for _, filter := range filters {
+			ok := filter.DoFilter(ep)
+			logger.Infow("ValueEndpoint filter",
+				"f-name", filter.name, "f-values", filter.values, "f-result", ok)
+			if !ok {
+				return false
+			}
+		}
+		return true
+	}
+	for _, multi := range multiends {
+		for _, item := range multi.Endpoints() {
+			if isFilterMatch(item) {
+				endpoints = append(endpoints, item)
 			}
 		}
 	}
@@ -143,10 +161,11 @@ func filterMVCEndpoints(ctx *flux.Context) []*flux.MVCEndpoint {
 	filters := make([]*MultiEndpointFilterWrapper, 0, len(epMultiFilters))
 	for key, filter := range epMultiFilters {
 		values, ok := ctx.FormVars()[key]
-		if !ok {
+		if !ok || IsEmptyVars(values) {
 			continue
 		}
 		filters = append(filters, &MultiEndpointFilterWrapper{
+			name:   fmt.Sprintf("MulKeyFilter/%s", key),
 			values: values,
 			filter: filter,
 		})
@@ -161,11 +180,20 @@ func filterMVCEndpoints(ctx *flux.Context) []*flux.MVCEndpoint {
 	}
 	source := ext.Endpoints()
 	endpoints := make([]*flux.MVCEndpoint, 0, len(source))
-	for _, filter := range filters {
-		for _, ep := range source {
-			if filter.DoFilter(ep) {
-				endpoints = append(endpoints, ep)
+	isFilterMatch := func(in *flux.MVCEndpoint) bool {
+		for _, filter := range filters {
+			ok := filter.DoFilter(in)
+			logger.Infow("MulEndpoint filter",
+				"f-name", filter.name, "f-values", filter.values, "f-result", ok)
+			if !ok {
+				return false
 			}
+		}
+		return true
+	}
+	for _, src := range source {
+		if isFilterMatch(src) {
+			endpoints = append(endpoints, src)
 		}
 	}
 	return endpoints
