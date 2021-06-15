@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/bytepowered/flux"
 	"github.com/bytepowered/flux/ext"
-	"github.com/bytepowered/flux/logger"
 	"github.com/bytepowered/flux/toolkit"
 	"github.com/bytepowered/flux/transporter/inapp"
 	"sort"
@@ -137,10 +136,7 @@ func filterEndpoints(ctx *flux.Context, multiends []*flux.MVCEndpoint) []*flux.E
 	endpoints := make([]*flux.Endpoint, 0, len(multiends))
 	isFilterMatch := func(ep *flux.Endpoint) bool {
 		for _, filter := range filters {
-			ok := filter.DoFilter(ep)
-			logger.Infow("ValueEndpoint filter",
-				"f-name", filter.name, "f-values", filter.values, "f-result", ok)
-			if !ok {
+			if !filter.DoFilter(ep) {
 				return false
 			}
 		}
@@ -182,10 +178,7 @@ func filterMVCEndpoints(ctx *flux.Context) []*flux.MVCEndpoint {
 	endpoints := make([]*flux.MVCEndpoint, 0, len(source))
 	isFilterMatch := func(in *flux.MVCEndpoint) bool {
 		for _, filter := range filters {
-			ok := filter.DoFilter(in)
-			logger.Infow("MulEndpoint filter",
-				"f-name", filter.name, "f-values", filter.values, "f-result", ok)
-			if !ok {
+			if !filter.DoFilter(in) {
 				return false
 			}
 		}
