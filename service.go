@@ -18,7 +18,7 @@ const (
 
 const (
 	ServiceMetadataServiceInterface = "net.bytepowered.flux.inspect.MetadataService"
-	ServiceMetadataServiceMethod    = "QueryService"
+	ServiceMetadataServiceMethod    = "services"
 )
 
 type ServiceFilter func(values []string, ep *flux.Service) bool

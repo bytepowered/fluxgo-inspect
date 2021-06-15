@@ -8,7 +8,7 @@ import (
 
 const (
 	ServiceStatsServiceInterface = "net.bytepowered.flux.inspect.StatsService"
-	ServiceStatsServiceMethod    = "StatsService"
+	ServiceStatsServiceMethod    = "services"
 )
 
 func init() {

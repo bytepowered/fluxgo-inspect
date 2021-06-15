@@ -21,7 +21,7 @@ const (
 
 const (
 	EndpointMetadataServiceInterface = "net.bytepowered.flux.inspect.MetadataService"
-	EndpointMetadataServiceMethod    = "QueryEndpoint"
+	EndpointMetadataServiceMethod    = "endpoints"
 )
 
 type MultiEndpointFilter func(values []string, mvce *flux.MVCEndpoint) bool

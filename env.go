@@ -10,7 +10,7 @@ import (
 
 const (
 	EnvMetadataServiceInterface = "net.bytepowered.flux.inspect.MetadataService"
-	EnvMetadataServiceMethod    = "QueryEnv"
+	EnvMetadataServiceMethod    = "envs"
 )
 
 func init() {

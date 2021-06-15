@@ -13,7 +13,7 @@ const (
 
 const (
 	ConfigMetadataServiceInterface = "net.bytepowered.flux.inspect.MetadataService"
-	ConfigMetadataServiceMethod    = "QueryConfig"
+	ConfigMetadataServiceMethod    = "configs"
 )
 
 func init() {
