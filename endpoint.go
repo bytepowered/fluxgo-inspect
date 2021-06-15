@@ -1,106 +1,184 @@
 package inspect
 
 import (
+	"fmt"
 	"github.com/bytepowered/flux"
 	"github.com/bytepowered/flux/ext"
+	"github.com/bytepowered/flux/toolkit"
+	"github.com/bytepowered/flux/transporter/inapp"
+	"sort"
 )
 
 const (
-	epQueryKeyApplication = "application"
-	epQueryKeyProtocol    = "protocol"
-	epQueryKeyPattern     = "pattern"
-	epQueryKeyInterface   = "interface"
+	endpointQueryApplication = "application"
+	endpointQueryHttpPattern = "httpPattern"
+	endpointQueryHttpMethod  = "httpMethod"
+
+	endpointQueryVersion   = "version"
+	endpointQueryServiceId = "serviceId"
+	endpointQueryRpcProto  = "rpcProto"
 )
 
-type EndpointFilter func(ep *flux.MVCEndpoint) bool
+const (
+	EndpointMetadataServiceInterface = "net.bytepowered.flux.inspect.MetadataService"
+	EndpointMetadataServiceMethod    = "QueryEndpoint"
+)
+
+type MultiEndpointFilter func(values []string, mvce *flux.MVCEndpoint) bool
+type SingleEndpointFilter func(values []string, ep *flux.Endpoint) bool
+
+// MultiEndpointFilterWrapper with value wrapper
+type MultiEndpointFilterWrapper struct {
+	values []string
+	filter MultiEndpointFilter
+}
+
+func (w *MultiEndpointFilterWrapper) DoFilter(mvce *flux.MVCEndpoint) bool {
+	return w.filter(w.values, mvce)
+}
+
+// SingleEndpointFilterWrapper with values wrapper
+type SingleEndpointFilterWrapper struct {
+	values []string
+	filter SingleEndpointFilter
+}
+
+func (w *SingleEndpointFilterWrapper) DoFilter(ep *flux.Endpoint) bool {
+	return w.filter(w.values, ep)
+}
 
 var (
-	endpointQueryKeys = []string{epQueryKeyApplication, epQueryKeyProtocol, epQueryKeyPattern, epQueryKeyInterface}
-	endpointFilters   = make(map[string]func(string) EndpointFilter)
+	epMultiFilters  = make(map[string]MultiEndpointFilter)
+	epSingleFilters = make(map[string]SingleEndpointFilter)
 )
 
 func init() {
-	endpointFilters[epQueryKeyApplication] = func(query string) EndpointFilter {
-		return func(ep *flux.MVCEndpoint) bool {
-			return !ep.IsEmpty() && queryMatch(query, ep.Random().Application)
-		}
+	// 注册Service
+	srv := flux.Service{
+		Kind:      "flux.service/inspect/v1",
+		Interface: EndpointMetadataServiceInterface,
+		Method:    EndpointMetadataServiceMethod,
+		Attributes: []flux.Attribute{
+			{Name: flux.ServiceAttrTagRpcProto, Value: flux.ProtoInApp},
+		},
 	}
-	endpointFilters[epQueryKeyProtocol] = func(query string) EndpointFilter {
-		return func(ep *flux.MVCEndpoint) bool {
-			proto := ep.Random().Service.RpcProto()
-			return !ep.IsEmpty() && queryMatch(query, proto)
-		}
+	ext.RegisterService(srv)
+	inapp.RegisterInvokeFunc(srv.ServiceID(), EndpointMetadataInvokeFunc)
+	// multi filters
+	epMultiFilters[endpointQueryApplication] = func(query []string, mvce *flux.MVCEndpoint) bool {
+		return toolkit.MatchEqual(query, mvce.Random().Application)
 	}
-	endpointFilters[epQueryKeyPattern] = func(query string) EndpointFilter {
-		return func(ep *flux.MVCEndpoint) bool {
-			return !ep.IsEmpty() && queryMatch(query, ep.Random().HttpPattern)
-		}
+	epMultiFilters[endpointQueryHttpPattern] = func(query []string, mvce *flux.MVCEndpoint) bool {
+		return toolkit.MatchContains(query, mvce.Random().HttpPattern)
 	}
-	endpointFilters[epQueryKeyInterface] = func(query string) EndpointFilter {
-		return func(ep *flux.MVCEndpoint) bool {
-			return !ep.IsEmpty() && queryMatch(query, ep.Random().Service.Interface)
-		}
+	epMultiFilters[endpointQueryHttpMethod] = func(query []string, mvce *flux.MVCEndpoint) bool {
+		return toolkit.MatchEqual(query, mvce.Random().HttpMethod)
+	}
+	// single filter
+	epSingleFilters[endpointQueryVersion] = func(query []string, ep *flux.Endpoint) bool {
+		return toolkit.MatchEqual(query, ep.Version)
+	}
+	epSingleFilters[endpointQueryServiceId] = func(query []string, ep *flux.Endpoint) bool {
+		return toolkit.MatchEqual(query, ep.ServiceId)
+	}
+	epSingleFilters[endpointQueryRpcProto] = func(query []string, ep *flux.Endpoint) bool {
+		return toolkit.MatchEqual(query, ep.Service.RpcProto())
 	}
 }
 
-func DoQueryEndpoints(args func(key string) string) []*flux.Endpoint {
-	filters := make([]EndpointFilter, 0)
-	for _, key := range endpointQueryKeys {
-		if value := args(key); value != "" {
-			if f, ok := endpointFilters[key]; ok {
-				filters = append(filters, f(value))
-			}
+// EndpointMetadataInvokeFunc 查询Endpoint元数据信息的函数实现
+func EndpointMetadataInvokeFunc(ctx *flux.Context, _ flux.Service) (interface{}, *flux.ServeError) {
+	// lookup
+	muleps := filterMVCEndpoints(ctx)
+	endpoints := filterEndpoints(ctx, muleps)
+	// sort
+	sort.Sort(SortableEndpoints(endpoints))
+	args := extraPageArgs(ctx)
+	total := len(endpoints)
+	data := endpoints[limit(0, total-1, args.start):limit(0, total-1, args.end)]
+	// page, pageSize
+	return map[string]interface{}{
+		"success":  true,
+		"data":     data,
+		"page":     args.page,
+		"pageSize": args.pageSize,
+		"total":    total,
+	}, nil
+}
+
+func filterEndpoints(ctx *flux.Context, muleps []*flux.MVCEndpoint) []*flux.Endpoint {
+	// Lookup filters
+	filters := make([]*SingleEndpointFilterWrapper, 0, len(epSingleFilters))
+	for key, filter := range epSingleFilters {
+		values, ok := ctx.FormVars()[key]
+		if !ok {
+			continue
 		}
+		filters = append(filters, &SingleEndpointFilterWrapper{
+			values: values,
+			filter: filter,
+		})
 	}
-	endpoints := ext.Endpoints()
 	if len(filters) == 0 {
-		out := make([]*flux.Endpoint, 0, len(endpoints))
-		for _, mep := range endpoints {
-			out = append(out, mep.Endpoints()...)
-		}
-		return out
+		filters = []*SingleEndpointFilterWrapper{{filter: func(_ []string, _ *flux.Endpoint) bool {
+			return true
+		}}}
 	}
-	return queryEndpointByFilters(endpoints, filters...)
-}
-
-func EndpointsStatsHandler(webex flux.ServerWebContext) error {
-	apps := make(map[string]int)
-	count := 0
-	for _, ep := range ext.Endpoints() {
-		count++
-		app := ep.Random().Application
-		if c, ok := apps[app]; ok {
-			apps[app] = c + 1
-		} else {
-			apps[app] = 1
-		}
-	}
-	return WriteResponse(webex, flux.StatusOK, map[string]interface{}{
-		"count": count,
-		"apps":  apps,
-	})
-}
-
-func EndpointsHandler(webex flux.ServerWebContext) error {
-	m := DoQueryEndpoints(func(key string) string {
-		return webex.QueryVar(key)
-	})
-	return WriteResponse(webex, flux.StatusOK, m)
-}
-
-func queryEndpointByFilters(endpoints map[string]*flux.MVCEndpoint, filters ...EndpointFilter) []*flux.Endpoint {
-	out := make([]*flux.Endpoint, 0, 16)
-	for _, ep := range endpoints {
-		passed := true
-		for _, filter := range filters {
-			passed = filter(ep)
-			if !passed {
-				break
+	// Data filtering
+	endpoints := make([]*flux.Endpoint, 0, len(muleps))
+	for _, filter := range filters {
+		for _, mvce := range muleps {
+			for _, ep := range mvce.Endpoints() {
+				if filter.DoFilter(ep) {
+					endpoints = append(endpoints, ep)
+				}
 			}
 		}
-		if passed {
-			out = append(out, ep.Endpoints()...)
+	}
+	return endpoints
+}
+
+func filterMVCEndpoints(ctx *flux.Context) []*flux.MVCEndpoint {
+	// Lookup filters
+	filters := make([]*MultiEndpointFilterWrapper, 0, len(epMultiFilters))
+	for key, filter := range epMultiFilters {
+		values, ok := ctx.FormVars()[key]
+		if !ok {
+			continue
+		}
+		filters = append(filters, &MultiEndpointFilterWrapper{
+			values: values,
+			filter: filter,
+		})
+	}
+	// Data filtering
+	if len(filters) == 0 {
+		filters = []*MultiEndpointFilterWrapper{{
+			filter: func(_ []string, _ *flux.MVCEndpoint) bool {
+				return true
+			}},
 		}
 	}
-	return out
+	source := ext.Endpoints()
+	endpoints := make([]*flux.MVCEndpoint, 0, len(source))
+	for _, filter := range filters {
+		for _, ep := range source {
+			if filter.DoFilter(ep) {
+				endpoints = append(endpoints, ep)
+			}
+		}
+	}
+	return endpoints
+}
+
+// sort
+
+type SortableEndpoints []*flux.Endpoint
+
+func (s SortableEndpoints) Len() int           { return len(s) }
+func (s SortableEndpoints) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s SortableEndpoints) Less(i, j int) bool { return keyOf(s[i]) < keyOf(s[j]) }
+
+func keyOf(v *flux.Endpoint) string {
+	return fmt.Sprintf("%s,%s,%s,%s,%s", v.Application, v.Version, v.HttpMethod, v.HttpPattern, v.ServiceId)
 }

@@ -2,19 +2,52 @@ package inspect
 
 import (
 	"github.com/bytepowered/flux"
-	"github.com/bytepowered/flux/ext"
-	"strings"
+	"strconv"
 )
 
-func queryMatch(input, expected string) bool {
-	input, expected = strings.ToLower(input), strings.ToLower(expected)
-	return strings.Contains(expected, input)
+type pagination struct {
+	page     int
+	pageSize int
+	start    int
+	end      int
 }
 
-func WriteResponse(webex flux.ServerWebContext, status int, payload interface{}) error {
-	bytes, err := ext.JSONMarshalObject(payload)
-	if nil != err {
-		return err
+func extraPageArgs(ctx *flux.Context) pagination {
+	page, pageSize := 1, 10
+	if p, err := strconv.Atoi(ctx.FormVar("page")); err == nil {
+		page = p
 	}
-	return webex.Write(status, flux.MIMEApplicationJSONCharsetUTF8, bytes)
+	if ps, err := strconv.Atoi(ctx.FormVar("pageSize")); err == nil {
+		pageSize = ps
+	}
+	// page, size 限制修正
+	page = max(1, page)
+	pageSize = min(max(1, pageSize), min(100, pageSize))
+	// 索引计算
+	start := max(0, page-1) * pageSize
+	end := start + pageSize
+	return pagination{
+		page:     page,
+		pageSize: pageSize,
+		start:    start,
+		end:      end,
+	}
+}
+
+func limit(minV, maxV, v int) int {
+	return max(minV, min(maxV, v))
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func min(a, b int) int {
+	if a > b {
+		return b
+	}
+	return a
 }
