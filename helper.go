@@ -1,8 +1,11 @@
 package inspect
 
 import (
-	"github.com/bytepowered/fluxgo/pkg/flux"
 	"strconv"
+)
+
+import (
+	"github.com/bytepowered/fluxgo/pkg/flux"
 )
 
 // IsEmptyVars 判定列表参数是否任意一个为空值

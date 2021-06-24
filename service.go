@@ -2,11 +2,14 @@ package inspect
 
 import (
 	"fmt"
+	"sort"
+)
+
+import (
 	"github.com/bytepowered/fluxgo/pkg/ext"
 	"github.com/bytepowered/fluxgo/pkg/flux"
 	"github.com/bytepowered/fluxgo/pkg/toolkit"
 	"github.com/bytepowered/fluxgo/pkg/transporter/inapp"
-	"sort"
 )
 
 const (

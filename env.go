@@ -1,11 +1,14 @@
 package inspect
 
 import (
+	"os"
+	"strings"
+)
+
+import (
 	"github.com/bytepowered/fluxgo/pkg/ext"
 	"github.com/bytepowered/fluxgo/pkg/flux"
 	"github.com/bytepowered/fluxgo/pkg/transporter/inapp"
-	"os"
-	"strings"
 )
 
 const (
