@@ -1,9 +1,9 @@
 package inspect
 
 import (
-	"github.com/bytepowered/flux"
-	"github.com/bytepowered/flux/ext"
-	"github.com/bytepowered/flux/transporter/inapp"
+	"github.com/bytepowered/fluxgo/pkg/ext"
+	"github.com/bytepowered/fluxgo/pkg/flux"
+	"github.com/bytepowered/fluxgo/pkg/transporter/inapp"
 )
 
 const (
@@ -13,29 +13,26 @@ const (
 
 func init() {
 	// 注册Service
-	srv := flux.Service{
-		Kind:      "flux.service/inspect/v1",
+	srv := flux.ServiceSpec{
+		Kind:      flux.SpecKindService,
+		Protocol:  flux.ProtoInApp,
 		Interface: ServiceStatsServiceInterface,
 		Method:    ServiceStatsServiceMethod,
-		Attributes: []flux.Attribute{
-			{Name: flux.ServiceAttrTagRpcProto, Value: flux.ProtoInApp},
-		},
 	}
 	ext.RegisterService(srv)
 	inapp.RegisterInvokeFunc(srv.ServiceID(), ServiceStatsInvokeFunc)
 }
 
 // ServiceStatsInvokeFunc 查询Service元数据统计的函数实现
-func ServiceStatsInvokeFunc(_ *flux.Context, _ flux.Service) (interface{}, *flux.ServeError) {
+func ServiceStatsInvokeFunc(_ *flux.Context, _ flux.ServiceSpec) (interface{}, *flux.ServeError) {
 	protos := make(map[string]int)
 	total := 0
 	for _, ep := range ext.Services() {
 		total++
-		proto := ep.RpcProto()
-		if c, ok := protos[proto]; ok {
-			protos[proto] = c + 1
+		if c, ok := protos[ep.Protocol]; ok {
+			protos[ep.Protocol] = c + 1
 		} else {
-			protos[proto] = 1
+			protos[ep.Protocol] = 1
 		}
 	}
 	return map[string]interface{}{

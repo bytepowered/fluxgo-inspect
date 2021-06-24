@@ -1,9 +1,9 @@
 package inspect
 
 import (
-	"github.com/bytepowered/flux"
-	"github.com/bytepowered/flux/ext"
-	"github.com/bytepowered/flux/transporter/inapp"
+	"github.com/bytepowered/fluxgo/pkg/ext"
+	"github.com/bytepowered/fluxgo/pkg/flux"
+	"github.com/bytepowered/fluxgo/pkg/transporter/inapp"
 )
 
 const (
@@ -18,20 +18,18 @@ const (
 
 func init() {
 	// 注册Service
-	srv := flux.Service{
-		Kind:      "flux.service/inspect/v1",
+	srv := flux.ServiceSpec{
+		Kind:      flux.SpecKindService,
+		Protocol:  flux.ProtoInApp,
 		Interface: ConfigMetadataServiceInterface,
 		Method:    ConfigMetadataServiceMethod,
-		Attributes: []flux.Attribute{
-			{Name: flux.ServiceAttrTagRpcProto, Value: flux.ProtoInApp},
-		},
 	}
 	ext.RegisterService(srv)
 	inapp.RegisterInvokeFunc(srv.ServiceID(), ConfigMetadataInvokeFunc)
 }
 
 // ConfigMetadataInvokeFunc 查询Config元数据信息的函数实现
-func ConfigMetadataInvokeFunc(ctx *flux.Context, _ flux.Service) (interface{}, *flux.ServeError) {
+func ConfigMetadataInvokeFunc(ctx *flux.Context, _ flux.ServiceSpec) (interface{}, *flux.ServeError) {
 	root := flux.NewRootConfiguration()
 	// Namespaces
 	ns := ctx.FormVar(configQueryNamespace)

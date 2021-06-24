@@ -2,10 +2,10 @@ package inspect
 
 import (
 	"fmt"
-	"github.com/bytepowered/flux"
-	"github.com/bytepowered/flux/ext"
-	"github.com/bytepowered/flux/toolkit"
-	"github.com/bytepowered/flux/transporter/inapp"
+	"github.com/bytepowered/fluxgo/pkg/ext"
+	"github.com/bytepowered/fluxgo/pkg/flux"
+	"github.com/bytepowered/fluxgo/pkg/toolkit"
+	"github.com/bytepowered/fluxgo/pkg/transporter/inapp"
 	"sort"
 )
 
@@ -25,7 +25,7 @@ const (
 )
 
 type MultiEndpointFilter func(values []string, mvce *flux.MVCEndpoint) bool
-type ValueEndpointFilter func(values []string, ep *flux.Endpoint) bool
+type ValueEndpointFilter func(values []string, ep *flux.EndpointSpec) bool
 
 // MultiEndpointFilterWrapper with value wrapper
 type MultiEndpointFilterWrapper struct {
@@ -45,7 +45,7 @@ type ValueEndpointFilterWrapper struct {
 	filter ValueEndpointFilter
 }
 
-func (w *ValueEndpointFilterWrapper) DoFilter(ep *flux.Endpoint) bool {
+func (w *ValueEndpointFilterWrapper) DoFilter(ep *flux.EndpointSpec) bool {
 	return w.filter(w.values, ep)
 }
 
@@ -56,13 +56,11 @@ var (
 
 func init() {
 	// 注册Service
-	srv := flux.Service{
-		Kind:      "flux.service/inspect/v1",
+	srv := flux.ServiceSpec{
+		Kind:      flux.SpecKindService,
+		Protocol:  flux.ProtoInApp,
 		Interface: EndpointMetadataServiceInterface,
 		Method:    EndpointMetadataServiceMethod,
-		Attributes: []flux.Attribute{
-			{Name: flux.ServiceAttrTagRpcProto, Value: flux.ProtoInApp},
-		},
 	}
 	ext.RegisterService(srv)
 	inapp.RegisterInvokeFunc(srv.ServiceID(), EndpointMetadataInvokeFunc)
@@ -77,22 +75,22 @@ func init() {
 		return toolkit.MatchEqual(query, mvce.Random().HttpMethod)
 	}
 	// single filter
-	epValueFilters[endpointQueryApplication] = func(query []string, ep *flux.Endpoint) bool {
+	epValueFilters[endpointQueryApplication] = func(query []string, ep *flux.EndpointSpec) bool {
 		return toolkit.MatchEqual(query, ep.Application)
 	}
-	epValueFilters[endpointQueryVersion] = func(query []string, ep *flux.Endpoint) bool {
+	epValueFilters[endpointQueryVersion] = func(query []string, ep *flux.EndpointSpec) bool {
 		return toolkit.MatchEqual(query, ep.Version)
 	}
-	epValueFilters[endpointQueryServiceId] = func(query []string, ep *flux.Endpoint) bool {
+	epValueFilters[endpointQueryServiceId] = func(query []string, ep *flux.EndpointSpec) bool {
 		return toolkit.MatchEqual(query, ep.ServiceId)
 	}
-	epValueFilters[endpointQueryRpcProto] = func(query []string, ep *flux.Endpoint) bool {
-		return toolkit.MatchEqual(query, ep.Service.RpcProto())
+	epValueFilters[endpointQueryRpcProto] = func(query []string, ep *flux.EndpointSpec) bool {
+		return toolkit.MatchEqual(query, ep.Service.Protocol)
 	}
 }
 
 // EndpointMetadataInvokeFunc 查询Endpoint元数据信息的函数实现
-func EndpointMetadataInvokeFunc(ctx *flux.Context, _ flux.Service) (interface{}, *flux.ServeError) {
+func EndpointMetadataInvokeFunc(ctx *flux.Context, _ flux.ServiceSpec) (interface{}, *flux.ServeError) {
 	// lookup
 	muleps := filterMVCEndpoints(ctx)
 	endpoints := filterEndpoints(ctx, muleps)
@@ -113,7 +111,7 @@ func EndpointMetadataInvokeFunc(ctx *flux.Context, _ flux.Service) (interface{},
 	}, nil
 }
 
-func filterEndpoints(ctx *flux.Context, multiends []*flux.MVCEndpoint) []*flux.Endpoint {
+func filterEndpoints(ctx *flux.Context, multiends []*flux.MVCEndpoint) []*flux.EndpointSpec {
 	// Lookup filters
 	filters := make([]*ValueEndpointFilterWrapper, 0, len(epValueFilters))
 	for key, filter := range epValueFilters {
@@ -128,13 +126,13 @@ func filterEndpoints(ctx *flux.Context, multiends []*flux.MVCEndpoint) []*flux.E
 		})
 	}
 	if len(filters) == 0 {
-		filters = []*ValueEndpointFilterWrapper{{name: "ValueEndpointFilter/all", filter: func(_ []string, _ *flux.Endpoint) bool {
+		filters = []*ValueEndpointFilterWrapper{{name: "ValueEndpointFilter/all", filter: func(_ []string, _ *flux.EndpointSpec) bool {
 			return true
 		}}}
 	}
 	// Data filtering
-	endpoints := make([]*flux.Endpoint, 0, len(multiends))
-	isFilterMatch := func(ep *flux.Endpoint) bool {
+	endpoints := make([]*flux.EndpointSpec, 0, len(multiends))
+	isFilterMatch := func(ep *flux.EndpointSpec) bool {
 		for _, filter := range filters {
 			if !filter.DoFilter(ep) {
 				return false
@@ -194,12 +192,12 @@ func filterMVCEndpoints(ctx *flux.Context) []*flux.MVCEndpoint {
 
 // sort
 
-type SortableEndpoints []*flux.Endpoint
+type SortableEndpoints []*flux.EndpointSpec
 
 func (s SortableEndpoints) Len() int           { return len(s) }
 func (s SortableEndpoints) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s SortableEndpoints) Less(i, j int) bool { return keyOf(s[i]) < keyOf(s[j]) }
 
-func keyOf(v *flux.Endpoint) string {
+func keyOf(v *flux.EndpointSpec) string {
 	return fmt.Sprintf("%s,%s,%s,%s,%s", v.Application, v.Version, v.HttpMethod, v.HttpPattern, v.ServiceId)
 }

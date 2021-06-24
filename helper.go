@@ -1,7 +1,7 @@
 package inspect
 
 import (
-	"github.com/bytepowered/flux"
+	"github.com/bytepowered/fluxgo/pkg/flux"
 	"strconv"
 )
 

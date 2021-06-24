@@ -2,10 +2,10 @@ package inspect
 
 import (
 	"fmt"
-	"github.com/bytepowered/flux"
-	"github.com/bytepowered/flux/ext"
-	"github.com/bytepowered/flux/toolkit"
-	"github.com/bytepowered/flux/transporter/inapp"
+	"github.com/bytepowered/fluxgo/pkg/ext"
+	"github.com/bytepowered/fluxgo/pkg/flux"
+	"github.com/bytepowered/fluxgo/pkg/toolkit"
+	"github.com/bytepowered/fluxgo/pkg/transporter/inapp"
 	"sort"
 )
 
@@ -21,7 +21,7 @@ const (
 	ServiceMetadataServiceMethod    = "services"
 )
 
-type ServiceFilter func(values []string, ep *flux.Service) bool
+type ServiceFilter func(values []string, ep *flux.ServiceSpec) bool
 
 // ServiceFilterWrapper with values wrapper
 type ServiceFilterWrapper struct {
@@ -29,7 +29,7 @@ type ServiceFilterWrapper struct {
 	filter ServiceFilter
 }
 
-func (w *ServiceFilterWrapper) DoFilter(srv *flux.Service) bool {
+func (w *ServiceFilterWrapper) DoFilter(srv *flux.ServiceSpec) bool {
 	return w.filter(w.values, srv)
 }
 
@@ -39,33 +39,31 @@ var (
 
 func init() {
 	// 注册Service
-	srv := flux.Service{
-		Kind:      "flux.service/inspect/v1",
+	srv := flux.ServiceSpec{
+		Kind:      flux.SpecKindService,
+		Protocol:  flux.ProtoInApp,
 		Interface: ServiceMetadataServiceInterface,
 		Method:    ServiceMetadataServiceMethod,
-		Attributes: []flux.Attribute{
-			{Name: flux.ServiceAttrTagRpcProto, Value: flux.ProtoInApp},
-		},
 	}
 	ext.RegisterService(srv)
 	inapp.RegisterInvokeFunc(srv.ServiceID(), ServiceMetadataInvokeFunc)
 	// single filter
-	serviceFilters[serviceQueryApplication] = func(query []string, ep *flux.Service) bool {
+	serviceFilters[serviceQueryApplication] = func(query []string, ep *flux.ServiceSpec) bool {
 		return true // TODO 需要底层元数据模型支持
 	}
-	serviceFilters[serviceQueryInterface] = func(query []string, ep *flux.Service) bool {
+	serviceFilters[serviceQueryInterface] = func(query []string, ep *flux.ServiceSpec) bool {
 		return toolkit.MatchPrefix(query, ep.Interface)
 	}
-	serviceFilters[serviceQueryMethod] = func(query []string, ep *flux.Service) bool {
+	serviceFilters[serviceQueryMethod] = func(query []string, ep *flux.ServiceSpec) bool {
 		return toolkit.MatchPrefix(query, ep.Method)
 	}
-	serviceFilters[serviceQueryRpcProto] = func(query []string, ep *flux.Service) bool {
-		return toolkit.MatchEqual(query, ep.RpcProto())
+	serviceFilters[serviceQueryRpcProto] = func(query []string, ep *flux.ServiceSpec) bool {
+		return toolkit.MatchEqual(query, ep.Protocol)
 	}
 }
 
 // ServiceMetadataInvokeFunc 查询Service元数据信息的函数实现
-func ServiceMetadataInvokeFunc(ctx *flux.Context, _ flux.Service) (interface{}, *flux.ServeError) {
+func ServiceMetadataInvokeFunc(ctx *flux.Context, _ flux.ServiceSpec) (interface{}, *flux.ServeError) {
 	// lookup
 	services := filterServices(ctx)
 	// sort
@@ -83,7 +81,7 @@ func ServiceMetadataInvokeFunc(ctx *flux.Context, _ flux.Service) (interface{}, 
 	}, nil
 }
 
-func filterServices(ctx *flux.Context) []flux.Service {
+func filterServices(ctx *flux.Context) []flux.ServiceSpec {
 	// Lookup filters
 	filters := make([]*ServiceFilterWrapper, 0, len(serviceFilters))
 	for key, filter := range serviceFilters {
@@ -97,14 +95,14 @@ func filterServices(ctx *flux.Context) []flux.Service {
 		})
 	}
 	if len(filters) == 0 {
-		filters = []*ServiceFilterWrapper{{filter: func(_ []string, _ *flux.Service) bool {
+		filters = []*ServiceFilterWrapper{{filter: func(_ []string, _ *flux.ServiceSpec) bool {
 			return true
 		}}}
 	}
 	// Data filtering
 	source := ext.Services()
-	services := make([]flux.Service, 0, len(source))
-	isFilterMatch := func(srv *flux.Service) bool {
+	services := make([]flux.ServiceSpec, 0, len(source))
+	isFilterMatch := func(srv *flux.ServiceSpec) bool {
 		for _, filter := range filters {
 			if !filter.DoFilter(srv) {
 				return false
@@ -122,12 +120,12 @@ func filterServices(ctx *flux.Context) []flux.Service {
 
 // sort
 
-type SortableServices []flux.Service
+type SortableServices []flux.ServiceSpec
 
 func (s SortableServices) Len() int           { return len(s) }
 func (s SortableServices) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s SortableServices) Less(i, j int) bool { return serviceKeyOf(s[i]) < serviceKeyOf(s[j]) }
 
-func serviceKeyOf(v flux.Service) string {
+func serviceKeyOf(v flux.ServiceSpec) string {
 	return fmt.Sprintf("%s,%s", v.Interface, v.Method)
 }
