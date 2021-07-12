@@ -66,7 +66,7 @@ func init() {
 }
 
 // ServiceMetadataInvokeFunc 查询Service元数据信息的函数实现
-func ServiceMetadataInvokeFunc(ctx *flux.Context, _ flux.ServiceSpec) (interface{}, *flux.ServeError) {
+func ServiceMetadataInvokeFunc(ctx flux.Context, _ flux.ServiceSpec) (interface{}, *flux.ServeError) {
 	// lookup
 	services := filterServices(ctx)
 	// sort
@@ -84,7 +84,7 @@ func ServiceMetadataInvokeFunc(ctx *flux.Context, _ flux.ServiceSpec) (interface
 	}, nil
 }
 
-func filterServices(ctx *flux.Context) []flux.ServiceSpec {
+func filterServices(ctx flux.Context) []flux.ServiceSpec {
 	// Lookup filters
 	filters := make([]*ServiceFilterWrapper, 0, len(serviceFilters))
 	for key, filter := range serviceFilters {

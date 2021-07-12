@@ -29,7 +29,7 @@ func init() {
 }
 
 // ConfigMetadataInvokeFunc 查询Config元数据信息的函数实现
-func ConfigMetadataInvokeFunc(ctx *flux.Context, _ flux.ServiceSpec) (interface{}, *flux.ServeError) {
+func ConfigMetadataInvokeFunc(ctx flux.Context, _ flux.ServiceSpec) (interface{}, *flux.ServeError) {
 	root := flux.NewRootConfiguration()
 	// Namespaces
 	ns := ctx.FormVar(configQueryNamespace)

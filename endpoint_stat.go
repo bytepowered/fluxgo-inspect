@@ -24,7 +24,7 @@ func init() {
 }
 
 // EndpointStatsInvokeFunc 查询Endpoint元数据统计的函数实现
-func EndpointStatsInvokeFunc(_ *flux.Context, _ flux.ServiceSpec) (interface{}, *flux.ServeError) {
+func EndpointStatsInvokeFunc(_ flux.Context, _ flux.ServiceSpec) (interface{}, *flux.ServeError) {
 	apps := make(map[string]int)
 	count := 0
 	for _, ep := range ext.Endpoints() {

@@ -28,7 +28,7 @@ type pagination struct {
 	end      int
 }
 
-func extraPageArgs(ctx *flux.Context) pagination {
+func extraPageArgs(ctx flux.Context) pagination {
 	page, pageSize := 1, 10
 	if p, err := strconv.Atoi(ctx.FormVar("page")); err == nil {
 		page = p

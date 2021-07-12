@@ -24,7 +24,7 @@ func init() {
 }
 
 // ServiceStatsInvokeFunc 查询Service元数据统计的函数实现
-func ServiceStatsInvokeFunc(_ *flux.Context, _ flux.ServiceSpec) (interface{}, *flux.ServeError) {
+func ServiceStatsInvokeFunc(_ flux.Context, _ flux.ServiceSpec) (interface{}, *flux.ServeError) {
 	protos := make(map[string]int)
 	total := 0
 	for _, ep := range ext.Services() {

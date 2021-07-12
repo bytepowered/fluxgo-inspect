@@ -29,7 +29,7 @@ func init() {
 }
 
 // EnvMetadataInvokeFunc 查询Env元数据信息的函数实现
-func EnvMetadataInvokeFunc(ctx *flux.Context, _ flux.ServiceSpec) (interface{}, *flux.ServeError) {
+func EnvMetadataInvokeFunc(ctx flux.Context, _ flux.ServiceSpec) (interface{}, *flux.ServeError) {
 	osenv := os.Environ()
 	envs := make(map[string]string, len(osenv))
 	for _, e := range osenv {

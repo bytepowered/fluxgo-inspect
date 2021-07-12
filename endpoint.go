@@ -93,7 +93,7 @@ func init() {
 }
 
 // EndpointMetadataInvokeFunc 查询Endpoint元数据信息的函数实现
-func EndpointMetadataInvokeFunc(ctx *flux.Context, _ flux.ServiceSpec) (interface{}, *flux.ServeError) {
+func EndpointMetadataInvokeFunc(ctx flux.Context, _ flux.ServiceSpec) (interface{}, *flux.ServeError) {
 	// lookup
 	muleps := filterMVCEndpoints(ctx)
 	endpoints := filterEndpoints(ctx, muleps)
@@ -114,7 +114,7 @@ func EndpointMetadataInvokeFunc(ctx *flux.Context, _ flux.ServiceSpec) (interfac
 	}, nil
 }
 
-func filterEndpoints(ctx *flux.Context, multiends []*flux.MVCEndpoint) []*flux.EndpointSpec {
+func filterEndpoints(ctx flux.Context, multiends []*flux.MVCEndpoint) []*flux.EndpointSpec {
 	// Lookup filters
 	filters := make([]*ValueEndpointFilterWrapper, 0, len(epValueFilters))
 	for key, filter := range epValueFilters {
@@ -153,7 +153,7 @@ func filterEndpoints(ctx *flux.Context, multiends []*flux.MVCEndpoint) []*flux.E
 	return endpoints
 }
 
-func filterMVCEndpoints(ctx *flux.Context) []*flux.MVCEndpoint {
+func filterMVCEndpoints(ctx flux.Context) []*flux.MVCEndpoint {
 	// Lookup filters
 	filters := make([]*MultiEndpointFilterWrapper, 0, len(epMultiFilters))
 	for key, filter := range epMultiFilters {
